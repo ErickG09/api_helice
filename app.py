@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import sqlite3
 import paho.mqtt.client as mqtt
 from datetime import datetime
+import pytz  # Importar pytz para manejo de zonas horarias
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -17,13 +18,18 @@ def init_db():
 
 init_db()
 
+# Obtener hora actual en la zona horaria de México
+def obtener_hora_mexico():
+    zona_horaria_mexico = pytz.timezone('America/Mexico_City')
+    return datetime.now(zona_horaria_mexico).strftime("%Y-%m-%d %H:%M:%S")
+
 # Función que se ejecuta cuando el cliente recibe un mensaje MQTT
 def on_message(client, userdata, message):
     try:
         valor = float(message.payload.decode())  # Asumimos que el payload es un número
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
-        c.execute("INSERT INTO datos (valor, timestamp) VALUES (?, ?)", (valor, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        c.execute("INSERT INTO datos (valor, timestamp) VALUES (?, ?)", (valor, obtener_hora_mexico()))  # Ajustar la hora a México
         conn.commit()
         conn.close()
         print(f"Datos guardados: {valor}")
@@ -51,7 +57,7 @@ def recibir_datos():
         # Insertar el valor en la base de datos
         conn = sqlite3.connect('database.db')
         c = conn.cursor()
-        c.execute("INSERT INTO datos (valor, timestamp) VALUES (?, ?)", (valor, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        c.execute("INSERT INTO datos (valor, timestamp) VALUES (?, ?)", (valor, obtener_hora_mexico()))  # Ajustar la hora a México
         conn.commit()
         conn.close()
 

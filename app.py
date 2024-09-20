@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, request, jsonify
 import sqlite3
 import paho.mqtt.client as mqtt
 from datetime import datetime
@@ -35,6 +35,28 @@ client.connect("broker.hivemq.com", 1883, 60)  # Conéctate al broker MQTT
 client.subscribe("motor/energia")  # Suscríbete al tema que estás usando para enviar los datos
 client.loop_start()  # Inicia el bucle MQTT para recibir mensajes
 
+# Ruta para recibir datos desde POST (para pruebas manuales)
+@app.route('/api/post', methods=['POST'])
+def recibir_datos():
+    try:
+        # Obtener datos del cuerpo de la solicitud
+        data = request.json
+        valor = data.get('valor')
+
+        if valor is None:
+            return jsonify({'status': 'error', 'message': 'Valor no proporcionado'}), 400
+
+        # Insertar el valor en la base de datos
+        conn = sqlite3.connect('database.db')
+        c = conn.cursor()
+        c.execute("INSERT INTO datos (valor, timestamp) VALUES (?, ?)", (valor, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'success', 'message': 'Datos guardados exitosamente!'}), 201
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 # Ruta para obtener los datos desde la base de datos
 @app.route('/api/datos', methods=['GET'])
 def obtener_datos():
@@ -48,6 +70,45 @@ def obtener_datos():
         # Convertir los datos a formato JSON
         datos = [{'id': row[0], 'valor': row[1], 'timestamp': row[2]} for row in rows]
         return jsonify(datos), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# Ruta para eliminar un dato específico por ID
+@app.route('/api/datos/<int:id>', methods=['DELETE'])
+def eliminar_dato(id):
+    try:
+        conn = sqlite3.connect('database.db')
+        c = conn.cursor()
+
+        # Comprobar si el registro existe
+        c.execute("SELECT * FROM datos WHERE id=?", (id,))
+        dato = c.fetchone()
+
+        if dato is None:
+            return jsonify({'status': 'error', 'message': 'Dato no encontrado'}), 404
+
+        # Eliminar el dato
+        c.execute("DELETE FROM datos WHERE id=?", (id,))
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'success', 'message': f'Dato con id {id} eliminado exitosamente'}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# Ruta para eliminar todos los datos
+@app.route('/api/datos', methods=['DELETE'])
+def eliminar_todos():
+    try:
+        conn = sqlite3.connect('database.db')
+        c = conn.cursor()
+
+        # Eliminar todos los registros
+        c.execute("DELETE FROM datos")
+        conn.commit()
+        conn.close()
+
+        return jsonify({'status': 'success', 'message': 'Todos los datos han sido eliminados exitosamente'}), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 

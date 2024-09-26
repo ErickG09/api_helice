@@ -38,8 +38,13 @@ def on_message(client, userdata, message):
 
 # Configuración del cliente MQTT
 client = mqtt.Client()
+
+# Configuración para usar TLS (seguridad)
+client.tls_set()
+
+# Cambiar el broker al nuevo Cluster URL y puerto TLS
+client.connect("de895d9c551f4214b6be2c950f029a72.s1.eu.hivemq.cloud", 8883, 60)  # Conéctate al broker MQTT con TLS
 client.on_message = on_message
-client.connect("broker.hivemq.com", 1883, 60)  # Conéctate al broker MQTT
 client.subscribe("motor/energia")  # Suscríbete al tema que estás usando para enviar los datos
 client.loop_start()  # Inicia el bucle MQTT para recibir mensajes
 
